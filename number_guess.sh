@@ -8,23 +8,23 @@ read USERNAME
 
 #get user_id
 USER_ID=$($PSQL "SELECT user_id FROM game_played WHERE user_name='$USERNAME'")
-
+USER_NAME=$($PSQL "SELECT user_name FROM game_played WHERE user_name='$USERNAME'")
 #if user_id doesn't exist
 if [[ -z $USER_ID ]]
 then
-  INSERT_USER_ID_RESULT=$($PSQL "INSERT INTO game_played user_name) VALUES('$USERNAME')")
+  INSERT_USER_ID_RESULT=$($PSQL "INSERT INTO game_played(user_name) VALUES('$USERNAME')")
   USER_ID=$($PSQL "SELECT user_id FROM game_played WHERE user_name='$USERNAME'")
   echo "Welcome, $USERNAME! It looks like this is your first time here."
 
 #else display game stats
 else
-  GAMES_PLAYED=$($PSQL "SELECT games_played FROM game_playedWHERE user_id=$USER_ID")
+  GAMES_PLAYED=$($PSQL "SELECT games_played FROM game_played WHERE user_id=$USER_ID")
   BEST_GAME_TRIES=$($PSQL "SELECT best_game FROM game_played WHERE user_id=$USER_ID") 
-  echo "Welcome back, $USERNAME! You have played $GAMES_PLAYED, and your best game took $BEST_GAME_TRIES guesses."
-
+  echo "Welcome back, $USER_NAME! You have played $GAMES_PLAYED games, and your best game took $BEST_GAME_TRIES guesses."
+  echo $USER_NAME
 fi
-#GAMEPLAY!!!
-#while loop for taking guesses
+
+#while loop for taking guesses and keeping track of the amount of tries
 TRIES=0
 echo "Guess the secret number between 1 and 1000:"
 read USER_NUMBER
@@ -55,21 +55,24 @@ then
  read USER_NUMBER
 fi
 done
-#echo "broken out of loop"
-#increase games played for the user_id and compare if this is best score
-if [[ -z $GAMES_PLAYED ]] # if null, it's a new player, so must be inserted
+
+if [[ -z $GAMES_PLAYED ]] 
 then 
+# if returned null indicate that this is a new user
   GAMES_PLAYED=0 
-  GAMES_PLAYED=$(( $GAMES_PLAYED+1 ))
-  
-  GAMES_PLAYED_INCREMENT_RESULT=$($PSQL "INSERT INTO game_played(games_played,best_game,user_id) VALUES($GAMES_PLAYED,$TRIES,$USER_ID)")
   BEST_GAME_TRIES=$TRIES
-else    #not a new player, simple update
+  GAMES_PLAYED=$(( $GAMES_PLAYED+1 ))
+  USER_NAME=$($PSQL "SELECT user_name FROM game_played WHERE user_name='$USERNAME'")
+  GAMES_PLAYED_INCREMENT_RESULT=$($PSQL "UPDATE game_played SET games_played=$GAMES_PLAYED, best_game=$TRIES WHERE user_name='$USER_NAME'")
+  #GAMES_PLAYED_INCREMENT_RESULT=$($PSQL "INSERT INTO game_played(games_played,best_game) VALUES($GAMES_PLAYED,$TRIES)")
+  
+else    
+#if not a new player just update the information
   GAMES_PLAYED=$(( $GAMES_PLAYED+1 ))
   GAMES_PLAYED_INCREMENT_RESULT=$($PSQL "UPDATE game_played SET games_played=$GAMES_PLAYED WHERE user_id=$USER_ID")
   if [[ $TRIES -lt $BEST_GAME_TRIES ]]
   then
-    #echo "testing best game update"
+    #update the best games playes amountif less
     BEST_GAME_UPDATE=$($PSQL "UPDATE game_played SET best_game=$TRIES WHERE user_id=$USER_ID")
   fi 
 fi
